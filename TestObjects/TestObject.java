@@ -1,3 +1,5 @@
+package TestObjects;
+
 public class TestObject {
     private String string;
     private int integer;

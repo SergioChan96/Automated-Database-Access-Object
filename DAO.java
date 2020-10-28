@@ -15,7 +15,7 @@ import java.util.Objects;
 /**
  * Created by Serujio on 19-Oct-16.
  */
-// IMPORTANT: immer auf reihenfolge achten in welcher die daten in der datenbank auftauchen
+// IMPORTANT: Always have the data in the same sequence as they appear in the database
 public  abstract  class DAO<T> {
     protected  String LOG_TAG = this.getClass().getName();
     protected Connection conn = null;
@@ -31,6 +31,7 @@ public  abstract  class DAO<T> {
 
     public void insert(String table, Object t,String[] columns, ModelCallback c) {
 
+        //getting the Metadata of the table for insertion
         String sql1 = "SELECT * FROM " + table;
         ps = conn.prepareStatement(sql1);
         resultset = ps.executeQuery();
