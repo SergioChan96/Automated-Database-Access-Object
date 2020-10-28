@@ -1,49 +1,27 @@
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import org.omg.CORBA.DynAnyPackage.TypeMismatch;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.InputMismatchException;
 import java.util.List;
-import java.util.Objects;
 
-
-/**
- * Created by Serujio on 19-Oct-16.
- */
 // IMPORTANT: Always have the data in the same sequence as they appear in the database
-public  abstract  class DAO<T> {
-    protected  String LOG_TAG = this.getClass().getName();
+public  abstract  class Dao<T> implements DatabaseTable{
+    protected String LOG_TAG;
     protected Connection conn = null;
     protected PreparedStatement ps = null;
     protected ResultSet resultset = null;
     protected ResultSetMetaData rsmd = null;
     protected T t;
 
-
-    public DAO(T t){
+    public Dao(T t, String LOG_TAG){
         this.t = t;
+        this.LOG_TAG = LOG_TAG;
     }
 
-    public void insert(String table, Object t,String[] columns, ModelCallback c) {
-
-        //getting the Metadata of the table for insertion
-        String sql1 = "SELECT * FROM " + table;
-        ps = conn.prepareStatement(sql1);
-        resultset = ps.executeQuery();
-        rsmd = resultset.getMetaData();
-        resultset.next();
-        int count = rsmd.getColumnCount();
-        for(int i =0; )
-        if (rsmd.getColumnName().toLowerCase() == "id")
-        for (int i = 0; i < count-2; i++) {
-            sql = sql + ",?";
-        }
-
+    public void insert(String table, T t,String[] columns, ModelCallback c) {
         conn=Singleton.getInstance().openDatabase();
         boolean checkTransaction = false;
         String sql = "INSERT INTO " + table +" (";
@@ -131,7 +109,7 @@ public  abstract  class DAO<T> {
                 ps.setDouble(1,(Double) object);
             }else{
                 errPrint("new type is needed for whereclause");
-                c.onError(new InputMismatchException());
+                c.onError(new TypeMismatch());
                 return;
             }
 
@@ -284,11 +262,11 @@ public  abstract  class DAO<T> {
 
     }
 
-    public void getTableData(String table , ModelCallback<List<Object>> c) {
+    public void getTableData(String table , ModelCallback<List<T>> c) {
         conn=Singleton.getInstance().openDatabase();
         conn=Singleton.getInstance().openDatabase();
         String sql = "SELECT*FROM " + table;
-        List<Object> data = new ArrayList<Object>();
+        List<T> data = new ArrayList<T>();
         try {
             print(sql);
             ps = (conn).prepareStatement(sql);
@@ -333,56 +311,57 @@ public  abstract  class DAO<T> {
             c.onError(e);
         }
     }
-    protected Object[] insertIntoObject(ResultSet rs, ResultSetMetaData){
-        Object[] o = null;
-        Field[] field = t.getClass().getDeclaredFields();
+
+    protected String makeJson(ResultSet resultSet, ResultSetMetaData rsmd) {
         try {
+            String json = "{";
             for (int i = 1; i <= rsmd.getColumnCount(); i++) {
-                for (int  j = 0; j < field.length; j++){
-                    if (rsmd.getColumnName(i).toLowerCase()==field[j].getName()){
-                        if (rsmd.getColumnType(i) == Types.INTEGER) {
-                            o[j] = rs.getInt(i);
-                        } else if (rsmd.getColumnType(i) == Types.VARCHAR) {
-                            o[j] = rs.getString(i);
-                        } else if (rsmd.getColumnType(i) == Types.NUMERIC) {
-                            o[j] = rs.getDouble(i);
-                        } else if (rsmd.getColumnType(i) == Types.CHAR) {
-                            o[j] = rs.getString(i);
-                        } else if (rsmd.getColumnType(i) == Types.BOOLEAN) {
-                            o[j] = rs.getBoolean(i);
-                        } else {
-                            errPrint("Add new type corresponding to the sql type"+ rsmd.getColumnType(i));
-                            return null;
-                        }
-                    }
+                json = json + '"' + rsmd.getColumnName(i).toLowerCase() + '"' + ":";
+                if (rsmd.getColumnType(i) == Types.INTEGER) {
+                    json = json + '"' + resultSet.getInt(i) + '"';
+                } else if (rsmd.getColumnType(i) == Types.VARCHAR) {
+                    json = json + '"' + resultSet.getString(i) + '"';
+                } else if (rsmd.getColumnType(i) == Types.NUMERIC) {
+                    json = json + '"' + resultSet.getDouble(i) + '"';
+                } else if (rsmd.getColumnType(i) == Types.CHAR) {
+                    json = json + '"' + resultSet.getString(i) + '"';
+                } else if (rsmd.getColumnType(i)==Types.BOOLEAN){
+                    json = json+'"'+resultSet.getBoolean(i)+'"';
+                }else{
+                    errPrint("Add new type corresponding to the sql type" + json);
+                    return null;
+                }
+                if (i < rsmd.getColumnCount()) {
+                    json = json + ",";
                 }
             }
+
+            json = json + "}";
+            return json;
         }catch (Exception e){
             e.printStackTrace();
+            return null;
         }
-        return o;
+
     }
-    protected void insertIntoDatabase(PreparedStatement ps, ResultSetMetaData rsmd, T t){
-        try{
-            for (Field field : t.getClass().getDeclaredFields()){
-                for(int i=0;i <= rsmd.getColumnCount();i++){
-                    if (rsmd.getColumnName(i)==field.getName()){
-                        if (rsmd.getColumnType(i)==Types.INTEGER) {
-                            ps.setInt(i, (int) runGetter(field, t));
-                        } else if (rsmd.getColumnType(i) == Types.VARCHAR) {
-                            ps.setString(i, (String) runGetter(field, t));
-                        } else if (rsmd.getColumnType(i) == Types.NUMERIC) {
-                            ps.setDouble(i, (double) runGetter(field, t));
-                        } else if (rsmd.getColumnType(i) == Types.CHAR) {
-                            ps.setString(i, (String) runGetter(field, t));
-                        } else if (rsmd.getColumnType(i) == Types.BOOLEAN) {
-                            ps.setBoolean(i, (Boolean) runGetter(field, t));
-                        } else {
-                            errPrint("Add new type corresponding to the sql type" + rsmd.getColumnType(i));
-                            return;
-                        }
-                    }
+    protected void fromJson(PreparedStatement ps, ResultSetMetaData rsmd, JsonObject jsonObject){
+        try {
+            for (int i = 2; i <= rsmd.getColumnCount(); i++) {
+                if (rsmd.getColumnType(i) == Types.INTEGER) {
+                    ps.setInt(i-1, jsonObject.get(rsmd.getColumnName(i).toLowerCase()).getAsInt());
+                } else if (rsmd.getColumnType(i) == Types.VARCHAR) {
+                    ps.setString(i-1, jsonObject.get(rsmd.getColumnName(i).toLowerCase()).getAsString());
+                } else if (rsmd.getColumnType(i) == Types.NUMERIC) {
+                    ps.setDouble(i-1, jsonObject.get(rsmd.getColumnName(i).toLowerCase()).getAsDouble());
+                } else if (rsmd.getColumnType(i) == Types.CHAR) {
+                    ps.setString(i-1, jsonObject.get(rsmd.getColumnName(i).toLowerCase()).getAsString());
+                } else if (rsmd.getColumnType(i) == Types.BOOLEAN) {
+                    ps.setBoolean(i-1, jsonObject.get(rsmd.getColumnName(i).toLowerCase()).getAsBoolean());
+                }else{
+                    errPrint("Add new type corresponding to the sql type"+jsonObject.get(rsmd.getColumnName(i).toLowerCase()).getAsString());
+                    break;
                 }
+
             }
         }catch(Exception e){
             e.printStackTrace();
@@ -406,43 +385,6 @@ public  abstract  class DAO<T> {
     }
     protected void errPrint(String s){
         System.err.println(LOG_TAG+" : "+s);
-    }
-    public Object runGetter(Field field, T t) {
-        // MZ: Find the correct method
-        for (Method method : t.getClass().getMethods()) {
-            if ((method.getName().startsWith("get")) && (method.getName().length() == (field.getName().length() + 3))) {
-                if (method.getName().toLowerCase().endsWith(field.getName().toLowerCase())) {
-                    // MZ: Method found, run it
-                    try {
-                        return method.invoke(t);
-                    }catch (IllegalAccessException e) {
-                        System.out.println("Could not determine method: " + method.getName());
-                    }catch (InvocationTargetException e) {
-                        System.out.println("Could not determine method: " + method.getName());
-                    }
-                }
-            }
-        }
-        return null;
-    }
-    public  Object runSetter(Field field, Object[] o) {
-
-        Constructor constructor = null;
-        try {
-            constructor = t.getClass().getConstructor();
-        }catch (NoSuchMethodException nsme) {
-            //handle constructor not being found
-        }
-        //try instantiating and returning
-        try {
-            return constructor.newInstance(o);
-        }catch (InstantiationException ie) {
-            //handle InstantiationException
-        }catch (IllegalAccessException iae) {
-            //handle IllegalAccessException
-        }catch (InvocationTargetException ite) {
-            //handle InvocationTargetException
-        }
     }
 
 }
