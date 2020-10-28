@@ -3,9 +3,6 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * Created by Sergio on 07.12.2016.
- */
 public final class Singleton {
 
     private static Connection connection =null;

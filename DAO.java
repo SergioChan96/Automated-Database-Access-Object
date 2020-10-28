@@ -9,12 +9,7 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.InputMismatchException;
 import java.util.List;
-import java.util.Objects;
 
-
-/**
- * Created by Serujio on 19-Oct-16.
- */
 // IMPORTANT: Always have the data in the same sequence as they appear in the database
 public  abstract  class DAO<T> {
     protected  String LOG_TAG = this.getClass().getName();
