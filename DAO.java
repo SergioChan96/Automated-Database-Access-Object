@@ -23,7 +23,7 @@ public  abstract  class DAO<T> {
     public DAO(T t){
         this.t = t;
     }
-
+/*
     public void insert(String table, Object t,String[] columns, ModelCallback c) {
 
         //getting the Metadata of the table for insertion
@@ -439,5 +439,6 @@ public  abstract  class DAO<T> {
             //handle InvocationTargetException
         }
     }
+    */
 
 }
