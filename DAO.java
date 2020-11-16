@@ -1,14 +1,5 @@
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.InputMismatchException;
-import java.util.List;
 
 // IMPORTANT: Always have the data in the same sequence as they appear in the database
 public  abstract  class DAO<T> {
@@ -18,71 +9,63 @@ public  abstract  class DAO<T> {
     protected ResultSet resultset = null;
     protected ResultSetMetaData rsmd = null;
     protected T t;
+    protected String table;
 
 
-    public DAO(T t){
+    public DAO(T t, String table){
         this.t = t;
+        this.table = table;
     }
-/*
-    public void insert(String table, Object t,String[] columns, ModelCallback c) {
 
-        //getting the Metadata of the table for insertion
+    public void insert(Object t, ModelCallback c) {
+
+    //getting the Metadata of the table for insertion
+    String sql="";
+    try {
+        conn = Singleton.getInstance().openDatabase();
         String sql1 = "SELECT * FROM " + table;
         ps = conn.prepareStatement(sql1);
         resultset = ps.executeQuery();
         rsmd = resultset.getMetaData();
         resultset.next();
         int count = rsmd.getColumnCount();
-        for(int i =0; )
-        if (rsmd.getColumnName().toLowerCase() == "id")
-        for (int i = 0; i < count-2; i++) {
-            sql = sql + ",?";
-        }
-
-        conn=Singleton.getInstance().openDatabase();
-        boolean checkTransaction = false;
-        String sql = "INSERT INTO " + table +" (";
-        for (int i = 1; i<columns.length; i++){
-            if (i==columns.length-1){
-                sql=sql+columns[i]+") values(?";
-            }else{
-                sql=sql+columns[i]+ ",";
+        // checking if the database has an auto filled id field
+        boolean id = false;
+        for (int i = 0; i<count-1; i++) {
+            if (rsmd.getColumnName(i).toLowerCase() == "id") {
+                id=true;
             }
         }
-        try {
-            checkTransaction = conn.getAutoCommit();
-            String sql1 = "SELECT * FROM " + table;
-            ps = conn.prepareStatement(sql1);
-            resultset = ps.executeQuery();
-            rsmd = resultset.getMetaData();
-            resultset.next();
-            int count = rsmd.getColumnCount();
-            for (int i = 0; i < count-2; i++) {
+        if (id) {
+            for (int i = 0; i < count - 2; i++) {
                 sql = sql + ",?";
             }
-        } catch (SQLException e) {
+        }else {
+            for (int i = 0; i < count - 1; i++) {
+                sql = sql + ",?";
+            }
+        }
+        }catch(Exception e){
             e.printStackTrace();
             c.onError(e);
         }
         sql = sql + ")";
         print(sql);
-        Gson gson = new Gson();
-        String json = gson.toJson(t);
-        JsonObject jsonObject = gson.fromJson(json, JsonObject.class);
-        print(jsonObject.toString());
-
+        boolean checkTransaction = false;
         try {
+
+            checkTransaction = conn.getAutoCommit();
             if (checkTransaction) {
                 conn.setAutoCommit(false);
             }
             ps = this.conn.prepareStatement(sql);
-            fromJson(ps,rsmd,jsonObject);
+            insertIntoDatabase(ps, rsmd, this.t);
             ps.executeUpdate();
-            if (checkTransaction){
+            if (checkTransaction) {
                 conn.commit();
             }
             c.onComplete(new Object());
-        }catch(SQLException e) {
+        } catch (SQLException e) {
             e.printStackTrace();
             c.onError(e);
             if (conn != null) {
@@ -92,19 +75,20 @@ public  abstract  class DAO<T> {
                         conn.rollback();
                     }
                 } catch (SQLException excep) {
-                    e.printStackTrace();
+                    excep.printStackTrace();
                 }
             }
-        }catch(Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
             c.onError(e);
         } finally {
             try {
-                if(checkTransaction) {
+                if (checkTransaction) {
                     conn.setAutoCommit(true);
                 }
                 closeConnection();
-            }catch (Exception e){
+            } catch (Exception e) {
+                closeConnection();
                 e.printStackTrace();
                 c.onError(e);
             }
@@ -112,6 +96,7 @@ public  abstract  class DAO<T> {
     }
 
 
+    /*
     public void select(Object object, String table, String whereclause, ModelCallback<List<T>> c) {
         conn=Singleton.getInstance().openDatabase();
         List<T> tlist = new ArrayList<T>();
@@ -281,7 +266,6 @@ public  abstract  class DAO<T> {
 
     public void getTableData(String table , ModelCallback<List<Object>> c) {
         conn=Singleton.getInstance().openDatabase();
-        conn=Singleton.getInstance().openDatabase();
         String sql = "SELECT*FROM " + table;
         List<Object> data = new ArrayList<Object>();
         try {
@@ -357,21 +341,23 @@ public  abstract  class DAO<T> {
         }
         return o;
     }
-    protected void insertIntoDatabase(PreparedStatement ps, ResultSetMetaData rsmd, T t){
-        try{
-            for (Field field : t.getClass().getDeclaredFields()){
-                for(int i=0;i <= rsmd.getColumnCount();i++){
-                    if (rsmd.getColumnName(i)==field.getName()){
-                        if (rsmd.getColumnType(i)==Types.INTEGER) {
-                            ps.setInt(i, (int) runGetter(field, t));
+    */
+    protected void insertIntoDatabase (PreparedStatement ps, ResultSetMetaData rsmd, T t){
+        try {
+            for (Field field : t.getClass().getDeclaredFields()) {
+                field.setAccessible(true);
+                for (int i = 0; i <= rsmd.getColumnCount(); i++) {
+                    if (rsmd.getColumnName(i).toLowerCase() == field.getName().toLowerCase()) {
+                        if (rsmd.getColumnType(i) == Types.INTEGER) {
+                            ps.setInt(i, field.getInt(t));
                         } else if (rsmd.getColumnType(i) == Types.VARCHAR) {
-                            ps.setString(i, (String) runGetter(field, t));
+                            ps.setString(i, (String) field.get(t));
                         } else if (rsmd.getColumnType(i) == Types.NUMERIC) {
-                            ps.setDouble(i, (double) runGetter(field, t));
+                            ps.setDouble(i, field.getDouble(t));
                         } else if (rsmd.getColumnType(i) == Types.CHAR) {
-                            ps.setString(i, (String) runGetter(field, t));
+                            ps.setString(i, (String) field.get(t));
                         } else if (rsmd.getColumnType(i) == Types.BOOLEAN) {
-                            ps.setBoolean(i, (Boolean) runGetter(field, t));
+                            ps.setBoolean(i, field.getBoolean(t));
                         } else {
                             errPrint("Add new type corresponding to the sql type" + rsmd.getColumnType(i));
                             return;
@@ -379,66 +365,28 @@ public  abstract  class DAO<T> {
                     }
                 }
             }
-        }catch(Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
-
-    public void closeConnection() {
+    public void closeConnection () {
         try {
             if (resultset != null) {
                 resultset.close();
             }
-            if(conn != null){
+            if (conn != null) {
                 Singleton.getInstance().closeDatabase();
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
-    protected void print(String s){
-        System.out.println(LOG_TAG+" : "+s);
+    protected void print (String s){
+        System.out.println(LOG_TAG + " : " + s);
     }
-    protected void errPrint(String s){
-        System.err.println(LOG_TAG+" : "+s);
+    protected void errPrint (String s){
+        System.err.println(LOG_TAG + " : " + s);
     }
-    public Object runGetter(Field field, T t) {
-        // MZ: Find the correct method
-        for (Method method : t.getClass().getMethods()) {
-            if ((method.getName().startsWith("get")) && (method.getName().length() == (field.getName().length() + 3))) {
-                if (method.getName().toLowerCase().endsWith(field.getName().toLowerCase())) {
-                    // MZ: Method found, run it
-                    try {
-                        return method.invoke(t);
-                    }catch (IllegalAccessException e) {
-                        System.out.println("Could not determine method: " + method.getName());
-                    }catch (InvocationTargetException e) {
-                        System.out.println("Could not determine method: " + method.getName());
-                    }
-                }
-            }
-        }
-        return null;
-    }
-    public  Object runSetter(Field field, Object[] o) {
 
-        Constructor constructor = null;
-        try {
-            constructor = t.getClass().getConstructor();
-        }catch (NoSuchMethodException nsme) {
-            //handle constructor not being found
-        }
-        //try instantiating and returning
-        try {
-            return constructor.newInstance(o);
-        }catch (InstantiationException ie) {
-            //handle InstantiationException
-        }catch (IllegalAccessException iae) {
-            //handle IllegalAccessException
-        }catch (InvocationTargetException ite) {
-            //handle InvocationTargetException
-        }
-    }
-    */
 
 }

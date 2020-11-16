@@ -3,9 +3,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 
-import static org.junit.Assert.assertEquals;
 
 public class JUnitTest {
 
@@ -45,6 +43,10 @@ public class JUnitTest {
         }catch(Exception e){
             e.printStackTrace();
         }
+    }
+    @Test
+    public void testInsertinDatabase(){
+
     }
     /*
     public void getGetterNames() {
