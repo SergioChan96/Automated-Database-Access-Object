@@ -1,4 +1,4 @@
-package TestObjects;
+package Project.TestObjects;
 
 public class TestObject {
     private String string;
