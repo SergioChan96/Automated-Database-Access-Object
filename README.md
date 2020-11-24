@@ -44,11 +44,15 @@ like the select function with an boolean output.
 public void insert(table, user, columnNames , new ModelCallback() {
     @Override
     public void onComplete(Object o) {
-        c.onComplete(o);
+        ...
+        do stuff
+        ...
     }
     @Override
     public void onError(Exception e) {
-        c.onError("Ein unerwarteter Fehler ist augetreten");
+        ...
+        Error handling
+        ...
     }
 });
 ```
