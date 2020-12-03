@@ -8,7 +8,6 @@ import java.util.List;
 
 // IMPORTANT: Always have the data in the same sequence as they appear in the database
 public  abstract  class DAO<T> {
-    protected String LOG_TAG = this.getClass().getName();
     protected Connection conn = null;
     protected PreparedStatement ps = null;
     protected ResultSet resultset = null;
@@ -22,10 +21,11 @@ public  abstract  class DAO<T> {
         this.table = table;
     }
 
-    public void insertInto(Object t, ModelCallback c) {
+    public void insertInto(T t, ModelCallback c) {
 
     //getting the Metadata of the table for insertion
-    String sql="";
+    String sql="INSERT INTO "+ table +" VALUES (?";
+
     try {
         conn = Singleton.getInstance().openDatabase();
         String sql1 = "SELECT * FROM " + table;
@@ -36,7 +36,7 @@ public  abstract  class DAO<T> {
         int count = rsmd.getColumnCount();
         // checking if the database has an auto filled id field
         boolean id = false;
-        for (int i = 0; i<count-1; i++) {
+        for (int i = 1; i<count; i++) {
             if (rsmd.getColumnName(i).toLowerCase() == "id") {
                 id=true;
             }
@@ -64,7 +64,7 @@ public  abstract  class DAO<T> {
                 conn.setAutoCommit(false);
             }
             ps = this.conn.prepareStatement(sql);
-            insertIntoDatabase(ps, rsmd, this.t);
+            insertIntoDatabase(ps, rsmd, t);
             ps.executeUpdate();
             if (checkTransaction) {
                 conn.commit();
@@ -95,18 +95,17 @@ public  abstract  class DAO<T> {
             } catch (Exception e) {
                 closeConnection();
                 e.printStackTrace();
-                c.onError(e);
             }
         }
     }
 
 
 
-    public void selectData(Object whereObject, String whereclause, ModelCallback<List<T>> c) {
+    public void selectData(Object whereObject, String whereColumn, ModelCallback<List<T>> c) {
         conn=Singleton.getInstance().openDatabase();
         List<T> tlist = new ArrayList<T>();
         try {
-            String sql = "SELECT * FROM " + table + " WHERE " + whereclause + " = ?";
+            String sql = "SELECT * FROM " + table + " WHERE " + whereColumn + " = ?";
             ps = conn.prepareStatement(sql);
             if (whereObject instanceof Integer){
                 ps.setInt(1,(int) whereObject);
@@ -115,7 +114,7 @@ public  abstract  class DAO<T> {
             }else if (whereObject instanceof Double){
                 ps.setDouble(1,(Double) whereObject);
             }else{
-                errPrint("new type is needed for whereclause");
+                errPrint("new type is needed for whereColumn");
                 c.onError(new InputMismatchException());
                 return;
             }
@@ -138,7 +137,7 @@ public  abstract  class DAO<T> {
     }
 
 
-    public void deleteData(Object whereObject, String whereclause, ModelCallback c) {
+    public void deleteData(Object whereObject, String whereColumn, ModelCallback c) {
         conn=tools.Singleton.getInstance().openDatabase();
         boolean checkTransaction = false;
         try {
@@ -146,7 +145,7 @@ public  abstract  class DAO<T> {
             if(checkTransaction) {
                 conn.setAutoCommit(false);
             }
-            String sql = "delete from " + table + " where " + whereclause + " = ?";
+            String sql = "delete from " + table + " where " + whereColumn + " = ?";
 
             ps = (conn).prepareStatement(sql);
 
@@ -157,7 +156,7 @@ public  abstract  class DAO<T> {
             }else if (whereObject instanceof Double){
                 ps.setDouble(1,(Double) whereObject);
             }else{
-                errPrint("new type is needed for whereclause");
+                errPrint("new type is needed for whereColumn");
                 c.onError(new InputMismatchException());
                 return;
             }
@@ -267,24 +266,19 @@ public  abstract  class DAO<T> {
         }
 
     }
-
-    public void getTableData(String table , tools.ModelCallback<List<Object>> c) {
+*/
+    public void getTableData(ModelCallback<List<T>> c) {
         conn=tools.Singleton.getInstance().openDatabase();
         String sql = "SELECT*FROM " + table;
-        List<Object> data = new ArrayList<Object>();
+        List<T> data = new ArrayList<T>();
         try {
             print(sql);
             ps = (conn).prepareStatement(sql);
             resultset = ps.executeQuery();
-
             rsmd = resultset.getMetaData();
-            int columnsNumber = rsmd.getColumnCount();
-            Gson gson = new Gson();
 
             while (resultset.next()) {
-                String json=makeJson(resultset,rsmd);
-                print(json);
-                t = gson.fromJson(json, (Class<T>) t.getClass());
+                t=insertIntoObject(t ,resultset,rsmd);
                 data.add(t);
             }
             c.onComplete(data);
@@ -294,13 +288,25 @@ public  abstract  class DAO<T> {
         }
         closeConnection();
     }
-    public void checkIfAlreadyThere(String uniqueName,String table, String column, tools.ModelCallback<Boolean> c){
+    public void checkIfAlreadyThere(Object whereObject, String whereColumn, ModelCallback<Boolean> c){
         conn=tools.Singleton.getInstance().openDatabase();
+
         try {
-            String sql = "SELECT*FROM " + table + " WHERE " + column + " = ?";
+            String sql = "SELECT*FROM " + table + " WHERE " + whereColumn + " = ?";
             print(sql);
             ps = (conn).prepareStatement(sql);
-            ps.setString(1,uniqueName);
+            if (whereObject instanceof Integer){
+                ps.setInt(1,(int) whereObject);
+            }else if (whereObject instanceof String){
+                ps.setString(1,(String) whereObject);
+            }else if (whereObject instanceof Double){
+                ps.setDouble(1,(Double) whereObject);
+            }else{
+                errPrint("new type is needed for whereColumn");
+                c.onError(new InputMismatchException());
+                return;
+            }
+
             resultset = ps.executeQuery();
             if (!resultset.isBeforeFirst()) {
                 print(resultset.isAfterLast()+"");
@@ -316,14 +322,14 @@ public  abstract  class DAO<T> {
             c.onError(e);
         }
     }
-    */
+
     protected T insertIntoObject(T t, ResultSet rs, ResultSetMetaData rsmd){
         Field[] field = t.getClass().getDeclaredFields();
         try {
             for (int i = 1; i <= rsmd.getColumnCount(); i++) {
                 for (int  j = 0; j < field.length; j++){
                     field[j].setAccessible(true);
-                    if (rsmd.getColumnName(i).toLowerCase()==field[j].getName()){
+                    if (rsmd.getColumnName(i).toLowerCase().contentEquals(field[j].getName())){
                         if (rsmd.getColumnType(i) == Types.INTEGER) {
                             field[j].setInt(t,rs.getInt(i));
                         } else if (rsmd.getColumnType(i) == Types.VARCHAR) {
@@ -350,18 +356,23 @@ public  abstract  class DAO<T> {
         try {
             for (Field field : t.getClass().getDeclaredFields()) {
                 field.setAccessible(true);
-                for (int i = 0; i <= rsmd.getColumnCount(); i++) {
-                    if (rsmd.getColumnName(i).toLowerCase() == field.getName().toLowerCase()) {
+                for (int i = 1; i <= rsmd.getColumnCount(); i++) {
+                    if (rsmd.getColumnName(i).toLowerCase().contentEquals(field.getName().toLowerCase())) {
                         if (rsmd.getColumnType(i) == Types.INTEGER) {
                             ps.setInt(i, field.getInt(t));
+                            print(i+" int " +field.getInt(t));
                         } else if (rsmd.getColumnType(i) == Types.VARCHAR) {
                             ps.setString(i, (String) field.get(t));
+                            print(i+" varchar "+(String) field.get(t));
                         } else if (rsmd.getColumnType(i) == Types.NUMERIC) {
                             ps.setDouble(i, field.getDouble(t));
+                            print(i+" double "+field.getDouble(t));
                         } else if (rsmd.getColumnType(i) == Types.CHAR) {
                             ps.setString(i, (String) field.get(t));
+                            print(i+" char "+(String) field.get(t));
                         } else if (rsmd.getColumnType(i) == Types.BOOLEAN) {
                             ps.setBoolean(i, field.getBoolean(t));
+                            print(i+" boolean "+field.getBoolean(t));
                         } else {
                             errPrint("Add new type corresponding to the sql type" + rsmd.getColumnType(i));
                             return;
@@ -386,10 +397,10 @@ public  abstract  class DAO<T> {
         }
     }
     protected void print (String s){
-        System.out.println(LOG_TAG + " : " + s);
+        System.out.println(s);
     }
     protected void errPrint (String s){
-        System.err.println(LOG_TAG + " : " + s);
+        System.err.println(s);
     }
 
 

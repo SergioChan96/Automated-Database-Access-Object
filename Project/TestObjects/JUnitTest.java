@@ -3,12 +3,15 @@ package Project.TestObjects;
 import org.junit.Before;
 import org.junit.Test;
 import tools.ModelCallback;
+import tools.Singleton;
 
 import java.lang.reflect.Field;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 
 public class JUnitTest {
@@ -20,8 +23,32 @@ public class JUnitTest {
     public void preparation() {
         t = new TestObject("Hey", 5, 2.5);
         dao = new TestObjectDAO();
-    }
 
+        Connection conn = Singleton.getInstance().openDatabase();
+        try {
+            String sql = "SELECT name FROM sqlite_master WHERE type='table'";
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ResultSet resultset = ps.executeQuery();
+            if(resultset.next()) {
+                System.out.println(resultset.getString("name"));
+            }else{
+                sql = "CREATE TABLE test (string VARCHAR, integer INTEGER, double NUMERIC )";
+                ps = conn.prepareStatement(sql);
+                ps.executeUpdate();
+            }
+        }catch(Exception e){
+            e.printStackTrace();
+            fail();
+        }finally {
+            try {
+                Singleton.getInstance().closeDatabase();
+            }catch (Exception ex){
+                ex.printStackTrace();
+            }
+        }
+
+    }
+/*
     @Test
     public void getNamesOfFieldsinClass() {
 
@@ -47,9 +74,55 @@ public class JUnitTest {
             e.printStackTrace();
         }
     }
+    */
     @Test
-    public void testInsertinDatabase(){
+    public void checkDAO(){
+        System.out.println(t.getString());
         dao.insert(t, new ModelCallback() {
+            @Override
+            public void onComplete(Object o) {
+            }
+            @Override
+            public void onError(Exception e) {
+                fail();
+            }
+        });
+        dao.select(5, "integer", new ModelCallback<List<TestObject>>() {
+            @Override
+            public void onComplete(List<TestObject> o) {
+                assertEquals(o.get(0),t);
+            }
+            @Override
+            public void onError(Exception e) {
+                System.err.println(e);
+                fail();
+            }
+        });
+        dao.entryExistAlready("hey", "string", new ModelCallback<Boolean>() {
+            @Override
+            public void onComplete(Boolean aBoolean) {
+                assertTrue(aBoolean);
+            }
+            @Override
+            public void onError(Exception e) {
+                System.err.println(e);
+                fail();
+            }
+        });
+        dao.getAllData(new ModelCallback<List<TestObject>>() {
+            @Override
+            public void onComplete(List<TestObject> testObjects) {
+                for (TestObject o : testObjects){
+                    System.out.println(o.getString() + " "+o.getDouble()+" "+o.getInteger());
+                }
+            }
+            @Override
+            public void onError(Exception e) {
+                System.err.println(e);
+                fail();
+            }
+        });
+        dao.delete("string", "string", new ModelCallback() {
             @Override
             public void onComplete(Object o) {
 
@@ -57,27 +130,11 @@ public class JUnitTest {
 
             @Override
             public void onError(Exception e) {
-                e.printStackTrace();
+                System.err.println(e);
                 fail();
             }
         });
     }
-    @Test
-    public void testSelect(){
-        dao.select(5, "integer", new ModelCallback<List<TestObject>>() {
-            @Override
-            public void onComplete(List<TestObject> o) {
-                assertEquals(o,t);
-            }
-
-            @Override
-            public void onError(Exception e) {
-                e.printStackTrace();
-                fail();
-            }
-        });
-    }
-    @Test
     public void testDeleteinDatabase(){
         dao.delete("string", "string", new ModelCallback() {
             @Override
@@ -87,11 +144,12 @@ public class JUnitTest {
 
             @Override
             public void onError(Exception e) {
-                e.printStackTrace();
+                System.err.println(e);
                 fail();
             }
         });
     }
+    // TODO Test comparison mistake numeric = integer or better type finding/comparison
 
     /*
     public void getGetterNames() {
