@@ -32,7 +32,7 @@ public class JUnitTest {
             if(resultset.next()) {
                 System.out.println(resultset.getString("name"));
             }else{
-                sql = "CREATE TABLE test (string VARCHAR, integer INTEGER, double NUMERIC )";
+                sql = "CREATE TABLE test (string VARCHAR, integer INTEGER, double NUMERIC(5,2));";
                 ps = conn.prepareStatement(sql);
                 ps.executeUpdate();
             }
@@ -90,7 +90,7 @@ public class JUnitTest {
         dao.select(5, "integer", new ModelCallback<List<TestObject>>() {
             @Override
             public void onComplete(List<TestObject> o) {
-                assertEquals(o.get(0),t);
+                assertEquals(o.get(0).getString(),t.getString());
             }
             @Override
             public void onError(Exception e) {
@@ -98,7 +98,7 @@ public class JUnitTest {
                 fail();
             }
         });
-        dao.entryExistAlready("hey", "string", new ModelCallback<Boolean>() {
+        dao.entryExistAlready("Hey", "string", new ModelCallback<Boolean>() {
             @Override
             public void onComplete(Boolean aBoolean) {
                 assertTrue(aBoolean);
@@ -122,7 +122,7 @@ public class JUnitTest {
                 fail();
             }
         });
-        dao.delete("string", "string", new ModelCallback() {
+        dao.delete("Hey", "string", new ModelCallback() {
             @Override
             public void onComplete(Object o) {
 
@@ -135,13 +135,34 @@ public class JUnitTest {
             }
         });
     }
-    public void testDeleteinDatabase(){
-        dao.delete("string", "string", new ModelCallback() {
-            @Override
-            public void onComplete(Object o) {
 
+    @Test
+    public void deleteDB(){
+        Connection conn = Singleton.getInstance().openDatabase();
+        try {
+            String sql = "DROP TABLE test";
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.executeUpdate();
+        }catch(Exception e){
+            e.printStackTrace();
+            fail();
+        }finally {
+            try {
+                Singleton.getInstance().closeDatabase();
+            }catch (Exception ex){
+                ex.printStackTrace();
             }
-
+        }
+    }
+    @Test
+    public void allData(){
+        dao.getAllData(new ModelCallback<List<TestObject>>() {
+            @Override
+            public void onComplete(List<TestObject> testObjects) {
+                for (TestObject o : testObjects){
+                    System.out.println("Object: "+o.getString() + " "+o.getDouble()+" "+o.getInteger());
+                }
+            }
             @Override
             public void onError(Exception e) {
                 System.err.println(e);
@@ -149,86 +170,27 @@ public class JUnitTest {
             }
         });
     }
-    // TODO Test comparison mistake numeric = integer or better type finding/comparison
-
-    /*
-    public void getGetterNames() {
-
-        // MZ: Find the correct method
-        for (Method method : t.getClass().getMethods()) {
-            System.out.println(method.getName());
-            if ((method.getName().startsWith("get")) && (method.getName().length() == (field.getName().length() + 3))) {
-                if (method.getName().toLowerCase().endsWith(field.getName().toLowerCase())) {
-                    // MZ: Method found, run it
-                    try {
-                    } catch (IllegalAccessException e) {
-                        System.out.println("Could not determine method: " + method.getName());
-                    }
-
-                }
+    @Test
+    public void gettingDouble(){
+        dao.insert(t, new ModelCallback() {
+            @Override
+            public void onComplete(Object o) {
             }
-        }
-    }
-    public static Object runSetter(Field field) {
-        // MZ: Find the correct method
-        for (Method method : o.getClass().getMethods()) {
-            if ((method.getName().startsWith("set")) && (method.getName().length() == (field.getName().length() + 3))) {
-                if (method.getName().toLowerCase().endsWith(field.getName().toLowerCase())) {
-                    // MZ: Method found, run it
-                    try {
-                        return method.invoke(o);
-                    }
-                    catch (IllegalAccessException e) {
-                        System.out.println("Could not determine method: " + method.getName());
-                    }
-                }
+            @Override
+            public void onError(Exception e) {
+                fail();
             }
-        }
-        return null;
-
-    }
-
-    public static Object runGetter(Field field, Object o) {
-        // MZ: Find the correct method
-        for (Method method : o.getClass().getMethods()) {
-            if ((method.getName().startsWith("get")) && (method.getName().length() == (field.getName().length() + 3))) {
-                if (method.getName().toLowerCase().endsWith(field.getName().toLowerCase())) {
-                    // MZ: Method found, run it
-                try {
-                    return method.invoke(o);
-                }
-                catch (IllegalAccessException e) {
-                    System.out.println("Could not determine method: " + method.getName());
-                }
-                catch (InvocationTargetException e) {
-                    System.out.println("Could not determine method: " + method.getName());
-                }
-
-                }
+        });
+        dao.select(5, "integer", new ModelCallback<List<TestObject>>() {
+            @Override
+            public void onComplete(List<TestObject> o) {
+                assertEquals(t.getDouble(), o.get(0).getDouble(),0);
             }
-        }
-        return null;
-    }
-    public static Object runSetter(Field field) {
-        // MZ: Find the correct method
-        for (Method method : o.getClass().getMethods()) {
-            if ((method.getName().startsWith("set")) && (method.getName().length() == (field.getName().length() + 3))) {
-                if (method.getName().toLowerCase().endsWith(field.getName().toLowerCase())) {
-                    // MZ: Method found, run it
-                    try {
-                        return method.invoke(o);
-                    }
-                    catch (IllegalAccessException e) {
-                        System.out.println("Could not determine method: " + method.getName());
-                    }
-                    catch (InvocationTargetException e) {
-                        System.out.println("Could not determine method: " + method.getName());
-                    }
-
-                }
+            @Override
+            public void onError(Exception e) {
+                System.err.println(e);
+                fail();
             }
-        }
-        return null;
+        });
     }
-     */
 }

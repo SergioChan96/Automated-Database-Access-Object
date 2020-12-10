@@ -19,11 +19,10 @@ public final class Singleton {
     private Singleton() {
     }
     public Connection openDatabase(){
-        System.out.println(counter.get());
         if (counter.incrementAndGet()==1){
             try {
                 Class.forName("org.sqlite.JDBC");
-                String url = "jdbc:sqlite:resource:TestDB.db";
+                String url = "jdbc:sqlite:Resources/TestDB.db";
                 connection = DriverManager.getConnection(url);
             } catch (Exception e) {
                 e.printStackTrace();
@@ -32,7 +31,6 @@ public final class Singleton {
         return connection;
     }
     public void closeDatabase(){
-        System.out.println(counter.get());
         if (counter.decrementAndGet()==0){
             try{
                 connection.close();
@@ -42,7 +40,6 @@ public final class Singleton {
         }
     }
     public void closeApplication(){
-        System.out.println(counter.get());
         try {
             if(counter.get()>0) {
                 connection.close();

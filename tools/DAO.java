@@ -324,24 +324,23 @@ public  abstract  class DAO<T> {
     }
 
     protected T insertIntoObject(T t, ResultSet rs, ResultSetMetaData rsmd){
-        Field[] field = t.getClass().getDeclaredFields();
         try {
             for (int i = 1; i <= rsmd.getColumnCount(); i++) {
-                for (int  j = 0; j < field.length; j++){
-                    field[j].setAccessible(true);
-                    if (rsmd.getColumnName(i).toLowerCase().contentEquals(field[j].getName())){
-                        if (rsmd.getColumnType(i) == Types.INTEGER) {
-                            field[j].setInt(t,rs.getInt(i));
-                        } else if (rsmd.getColumnType(i) == Types.VARCHAR) {
-                            field[j].set(t, rs.getString(i));
-                        } else if (rsmd.getColumnType(i) == Types.NUMERIC) {
-                            field[j].setDouble(t,rs.getDouble(i));
-                        } else if (rsmd.getColumnType(i) == Types.CHAR) {
-                            field[j].set(t, rs.getString(i));
-                        } else if (rsmd.getColumnType(i) == Types.BOOLEAN) {
-                            field[j].setBoolean(t, rs.getBoolean(i));
+                for (Field field : t.getClass().getDeclaredFields()){
+                    field.setAccessible(true);
+                    if (rsmd.getColumnName(i).toLowerCase().contentEquals(field.getName().toLowerCase())){
+                        if (field.getType() == int.class) {
+                            field.setInt(t,rs.getInt(i));
+                        } else if (field.getType()==String.class) {
+                            field.set(t, rs.getString(i));
+                        } else if (field.getType()== double.class) {
+                            field.setDouble(t,rs.getDouble(i));
+                        } else if (field.getType()== char.class) {
+                            field.set(t, rs.getString(i));
+                        } else if (field.getType()== boolean.class) {
+                            field.setBoolean(t, rs.getBoolean(i));
                         } else {
-                            errPrint("Add new type corresponding to the sql type"+ rsmd.getColumnType(i));
+                            errPrint("Add new type corresponding to the sql type"+ field.getType());
                             return null;
                         }
                     }
@@ -358,23 +357,18 @@ public  abstract  class DAO<T> {
                 field.setAccessible(true);
                 for (int i = 1; i <= rsmd.getColumnCount(); i++) {
                     if (rsmd.getColumnName(i).toLowerCase().contentEquals(field.getName().toLowerCase())) {
-                        if (rsmd.getColumnType(i) == Types.INTEGER) {
+                        if (field.getType() == int.class)  {
                             ps.setInt(i, field.getInt(t));
-                            print(i+" int " +field.getInt(t));
-                        } else if (rsmd.getColumnType(i) == Types.VARCHAR) {
+                        } else if (field.getType()==String.class) {
                             ps.setString(i, (String) field.get(t));
-                            print(i+" varchar "+(String) field.get(t));
-                        } else if (rsmd.getColumnType(i) == Types.NUMERIC) {
+                        } else if (field.getType()== double.class) {
                             ps.setDouble(i, field.getDouble(t));
-                            print(i+" double "+field.getDouble(t));
-                        } else if (rsmd.getColumnType(i) == Types.CHAR) {
+                        } else if (field.getType()== char.class) {
                             ps.setString(i, (String) field.get(t));
-                            print(i+" char "+(String) field.get(t));
-                        } else if (rsmd.getColumnType(i) == Types.BOOLEAN) {
+                        } else if (field.getType()== boolean.class) {
                             ps.setBoolean(i, field.getBoolean(t));
-                            print(i+" boolean "+field.getBoolean(t));
                         } else {
-                            errPrint("Add new type corresponding to the sql type" + rsmd.getColumnType(i));
+                            errPrint("Add new type corresponding to the sql type" + field.getType());
                             return;
                         }
                     }
