@@ -48,33 +48,7 @@ public class JUnitTest {
         }
 
     }
-/*
-    @Test
-    public void getNamesOfFieldsinClass() {
 
-        System.out.println(t.getClass().getName());
-        try {
-            Class<?> c = Class.forName(t.getClass().getName());
-            System.out.println(t.getClass().getDeclaredFields()[1]);
-            Field[] field = t.getClass().getDeclaredFields();
-            field[0].setAccessible(true);
-            if (field[0].getGenericType().equals(Integer.TYPE)){
-                field[0].setInt(t,1);
-                System.out.println(t.getInteger());
-            }else if(field[0].getGenericType().equals(Double.TYPE)){
-                field[0].setDouble(t,5.5);
-                System.out.println(t.getDouble());
-            }else if(field[0].getGenericType().equals(String.class)) {
-                field[0].set(t, "string");
-                System.out.println(t.getString());
-            }
-        } catch(ClassNotFoundException x) {
-            x.printStackTrace();
-        }catch(Exception e){
-            e.printStackTrace();
-        }
-    }
-    */
     @Test
     public void checkDAO(){
         System.out.println(t.getString());
